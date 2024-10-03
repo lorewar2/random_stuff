@@ -1,0 +1,178 @@
+SAMTOOLS
+
+samtools view -H m64125_201110_063134.ccs.bam | grep '^@RG'
+
+samtools view -bh -F 0x900 m64125_201017_124255.himut.mapped.sorted.bam > m64125_201017_124255.himut.mapped.sorted.bam.primary
+
+samtools index m64125_201017_124255.himut.mapped.sorted.bam.primary
+
+samtools merge *.primary -o | samtools sort -o himut.merged.primary.bam -
+
+samtools merge -@ 32 -o himut.merged.primary.bam *.primary
+
+samtools sort -o himut.merged.primary.sorted.bam himut.merged.primary.bam
+
+samtools merge -@ 32 -o deep.merged.bam *.deep.mapped.bam
+
+samtools sort -o deep.merged.sorted.bam deep.merged.bam
+
+MINIMAP2
+
+minimap2 -R "@RG\\tID:108737a4\\tSM:DN609111O-A1" -t 16  -ax map-hifi --cs ../../GiaB_benchmark/GRCh38.fa m64125_201110_063134.ccs.fq.gz | samtools sort -o m64125_201110_063134.himut.mapped.sorted.bam # SM tag must be provided to retrieve sample ID
+
+minimap2 -ax map-hifi -t 16 ../../GiaB_benchmark/GRCh38.fa m64125_201110_063134.ccs.fq.gz | samtools view -bS - | samtools sort - > m64125_201110_063134.ccs.mapped.bam && samtools index m64125_201110_063134.ccs.mapped.bam
+
+minimap2 -ax map-hifi -t 16 ../../GiaB_benchmark/GRCh38.fa m64125_201109_000332.deep.fastq | samtools view -bS - | samtools sort - > m64125_201109_000332.deep.mapped.bam && samtools index m64125_201109_000332.deep.mapped.bam
+
+minimap2 -ax map-hifi -t 64 ../../GiaB_benchmark/GRCh38.fa m64125_201110_063134.deep.fastq | samtools view -bS - | samtools sort - > m64125_201110_063134.deep.mapped.bam && samtools index m64125_201110_063134.deep.mapped.bam
+
+minimap2 -ax map-hifi -t 64 /data1/GiaB_benchmark/GRCh38.fa human.unassembled.fasta | samtools view -bS - | samtools sort - > human.mapped.bam && samtools index human.mapped.bam
+
+DEEPVARAINT
+
+deepvariant.simg /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref ref.fa --reads=aln.primary_alignments.sorted.bam --output_vcf=germline.vcf
+
+sudo docker run \
+  -v "/data1":"/input" \
+  -v "/home/mweerakoon/test_deepvariant/output":"/output" \
+  google/deepvariant:1.5.0 /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref=/input/GiaB_benchmark/GRCh38.fa --reads=/input/hifi_consensus/try2/himut.merged.primary.sorted.bam --output_vcf=/output/germline.vcf --output_gvcf=/output/output.g.vcf.gz --intermediate_results_dir /output/intermediate_results_dir --num_shards=16
+
+sudo docker run \
+  -v "/data1":"/input" \
+  -v "/home/mweerakoon/test_deepvariant/output":"/output" \
+  google/deepvariant:1.5.0 /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref=/input/phasstphase_test/potato/reference/solTubHeraHap1.fa --reads=/input/phasstphase_test/potato/hifi/potato_hifi.bam --output_vcf=/output/potato_deep.vcf --output_gvcf=/output/potato_deep.g.vcf.gz --intermediate_results_dir /output/intermediate_results_dir --num_shards=32
+
+HIMUT
+
+himut call -i /data1/hifi_consensus/try2/himut.merged.primary.sorted.bam --vcf germline.vcf -o somatic.vcf --non_human_sample
+
+GIT
+
+git reset --hard
+git pull origin main
+git pull origin master
+
+LESS 
+
+g start
+G end
+/pattern forward
+?pattern backward
+
+GUNZIP
+
+gunzip -c gnomad.exomes.r2.0.2.sites.vcf.bgz > gnomad.exomes.r2.0.2.sites.vcf
+
+GREP LINES
+
+cat chr2_filtered.txt | grep "\[01 01 01 01\]" | wc -l
+
+DEEPCONSENSUS
+
+//setup 
+DOCKER_IMAGE=google/deepconsensus:1.2.0
+
+QS_DIR="/data1/hifi_consensus/try2/"
+
+sudo docker run \
+  -it \
+  -w /data \
+  -v "${QS_DIR}":/data \
+  ${DOCKER_IMAGE} /bin/bash
+
+n=1  # Set this to the shard you would like to process.
+n_total=500  # For a full dataset, set to a larger number such as 500.
+
+function to_shard_id {
+  # ${1}: n=1-based counter
+  # ${2}: n_total=1-based count
+  echo "$( printf %05g "${1}")-of-$(printf "%05g" "${2}")"
+}
+
+for n in {1..500}
+do
+  shard_id="$(to_shard_id "${n}" "${n_total}")"
+  ccs --min-rq=0.88 \
+      -j "$(nproc)" \
+      --chunk="${n}"/"${n_total}" \
+      m64125_201110_063134.subreads.bam \
+      "./deepconsensus2/${shard_id}.m64125_201110_063134.ccs.bam"
+  actc -j "$(nproc)" \
+      m64125_201110_063134.subreads.bam \
+      "./deepconsensus2/${shard_id}.m64125_201110_063134.ccs.bam" \
+      "./deepconsensus2/${shard_id}.m64125_201110_063134.subreads_to_ccs.bam"
+done
+
+//main part
+deepconsensus run \
+  --subreads_to_ccs=./deepconsensus2/${shard_id}.subreads_to_ccs.bam  \
+  --ccs_bam=./deepconsensus2/${shard_id}.ccs.bam \
+  --checkpoint=./deepconsensus2/model/checkpoint \
+  --output=./deepconsensus2/${shard_id}.output.fastq
+m64125_201110_063134
+  docker exec ${DOCKER_IMAGE} ./run_deep.sh
+
+  sudo docker run \
+  -d \
+  -w /data \
+  -v "${QS_DIR}":/data \
+  ${DOCKER_IMAGE} /bin/bash ./run_deep.sh
+
+  cat deepconsensus2/*.fastq > m64125_201110_063134.deep.fastq
+
+PHASSTPHASE
+
+./phasstphase -f /data1/phasstphase_test/potato/reference/solTubHeraHap1.fa --long_read_bam /data1/phasstphase_test/potato/hifi/potato_hifi.bam --output vcf_test_wg --vcf  /data1/phasstphase_test/potato/hifi/var.vcf.gz --ploidy 4 -t 20
+
+./phasstphase -f /data1/phasstphase_test/potato/reference/solTubHeraHap1.fa --long_read_bam /data1/phasstphase_test/potato/hifi/potato_hifi.bam --output vcf_test_wg --vcf  /data1/phasstphase_test/potato/hifi/potato_deep.g.vcf.gz --ploidy 4 -t 20
+
+LINUX APPEND
+
+for n in {0..199}
+do
+  cat final_result_${n}.txt >> final_21_file.txt
+done
+
+GOOGLE SHEET
+
+=MATCH(MAX(S3:V3), S3:V3, 0)
+
+=INDEX(W$3:Z$3, 1, MATCH(MAX(S3:V3), S3:V3, 0))
+
+=LARGE(UNIQUE(S3:V3),2)
+
+=INDEX(W$3:Z$3, 1, MATCH(LARGE(UNIQUE(S3:V3),2), s3:v3, 0))
+
+GREP
+
+for n in {0..199}
+do
+  grep "41039600" final_result_${n}.txt
+done
+
+KMC
+
+/data1/phasstphase_test/potato/hera/SRR15115655_1.fastq.gz
+/data1/phasstphase_test/potato/hera/SRR15115655_2.fastq.gz
+/data1/phasstphase_test/potato/stieglitz/SRR15115384_1.fastq.gz
+/data1/phasstphase_test/potato/stieglitz/SRR15115384_2.fastq.gz
+
+g++ -O3 main.cpp bin/libkmc_core.a -o kmc_runner -lbz2 -lz -lpthread
+# run the fasta file 
+~/kmc/bin/kmc -b -r -fa -ci1 -k21 ./156_hap_1.fa 156_hap_1 .
+
+ # make hera and stieg files
+~/kmc/bin/kmc -b -r -ci6 -cx12 -k21 @./hera_files.txt hera_int .
+~/kmc/bin/kmc -b -r -ci5 -cx11 -k21 @./stieg_files.txt stieg_int .
+
+~/kmc/bin/kmc_tools simple hera_int stieg_int kmers_subtract hera_unique
+~/kmc/bin/kmc_tools simple stieg_int hera_int kmers_subtract stieg_unique
+
+# intersecting to see
+~/kmc/bin/kmc_tools simple 156_hap_1 hera_unique -ci6 -cx12 intersect 156_hera
+~/kmc/bin/kmc_tools simple 156_hap_1 stieg_unique -ci5 -cx11 intersect 156_stieg
+~/kmc/bin/kmc_tools simple stieg_unique hera_unique -ci6 -cx12 intersect impossible
+
+# view summary
+~/kmc/bin/kmc_tools transform 156_hera dump 156_hera.txt
+~/kmc/bin/kmc_tools transform 156_stieg dump 156_stieg.txt
