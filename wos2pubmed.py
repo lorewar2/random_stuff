@@ -115,6 +115,6 @@ def convert_wos_to_pubmed(input_file, output_file):
     print(f"Conversion to PubMed format completed! Output saved to: {output_file}")
 
 # Example usage
-input_file = 'wos_original.txt'  # Replace with your WoS file path
-output_file = 'wos_converted2.txt'  # Desired output file path
+input_file = 'wos_original_2.txt'  # Replace with your WoS file path
+output_file = 'wos_converted3.txt'  # Desired output file path
 convert_wos_to_pubmed(input_file, output_file)

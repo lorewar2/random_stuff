@@ -60,12 +60,12 @@ def read_file_to_array(file_path, encoding='utf-8'):
     return entries
 
 # Example usage
-file_path = 'scopus.bib'  # Replace with your file path
+file_path = 'scopus(2).bib'  # Replace with your file path
 output_file = "scopus_converted.txt"
-entries = read_file_to_array(file_path, encoding='utf-8')  # You can change this if needed
+entries = read_file_to_array(file_path, encoding='latin-1')  # You can change this if needed
 for i, entry in enumerate(entries):
     if i == 0:
         continue
-    with open(output_file, 'a', encoding='utf-8') as f:
+    with open(output_file, 'a', encoding='latin-1') as f:
         f.write("{}\n\n".format(convert_bibtex_to_pubmed(entry)))
 
