@@ -1,3 +1,13 @@
+CELLRANGER
+
+cellranger count --id=CB1 \
+--create-bam=true \
+--transcriptome=/data1/cellector/kmeans_pp/demuxlet_data/refdata-cellranger-GRCh38-3.0.0 \
+--fastqs=/data1/cellector/kmeans_pp/split_by_doner/CB1 \
+--sample=MantonCB1_HiSeq_2 \
+--localcores=64 \
+--localmem=128
+
 SAMTOOLS
 
 samtools view -H m64125_201110_063134.ccs.bam | grep '^@RG'
