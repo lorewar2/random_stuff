@@ -8,6 +8,28 @@ cellranger count --id=CB1 \
 --localcores=64 \
 --localmem=128
 
+for sample in MantonCB5_HiSeq_{1..8}; do
+cellranger count --id=${sample} \
+--create-bam=true \
+--transcriptome=/data1/cellector/kmeans_pp/demuxlet_data/refdata-cellranger-GRCh38-3.0.0 \
+--fastqs=/data1/cellector/kmeans_pp/split_by_doner/CB5 \
+--sample=${sample} \
+--localcores=12 \
+--localmem=64
+done
+
+BASH
+
+for ((i=0; i<20; i++)); do
+    for ((j=0; j<20; j++)); do
+        sample=MantonCB"$i"_HiSeq_"$j"
+        echo $sample
+        destination=CB"$i"/
+        echo $destination
+        mv $sample $destination
+    done
+done
+
 SAMTOOLS
 
 samtools view -H m64125_201110_063134.ccs.bam | grep '^@RG'
