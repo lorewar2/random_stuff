@@ -5,7 +5,9 @@ import csv
 import pysam
 
 UNIQUE_CELLS = 10 # number of cells required
+INCLUDE_DOUBLETS = True 
 BAR_CODE_MIN_READ = 10 # Min number of reads corrosponding to cell
+DONORS = 20
 GET_FIRST_ONES_FAST = True
 OUTPUT_BAM_PATH = "./test.bam"
 OUTPUT_BARCODES_PATH = "./test.tsv"
@@ -19,7 +21,10 @@ def main():
     for index, experiment_bam_path in enumerate(experiment_bams_selected):
         print("Processing -{} : {}".format(index, experiment_bam_path))
         sampled_reads = sample_bam_by_cb_tag(experiment_bam_path, UNIQUE_CELLS)
-        modified_reads = modify_cb_tags(sampled_reads, "-{}".format(index))
+        if INCLUDE_DOUBLETS:
+            modified_reads = modify_cb_tags_with_doublets(sampled_reads, "-{}".format(index), 0.01)
+        else:
+            modified_reads = modify_cb_tags(sampled_reads, "-{}".format(index))
         # put in combined reads
         # Iterate over each dictionary provided as input
         for key, value in modified_reads.items():
@@ -31,6 +36,53 @@ def main():
                 combined_reads[key].append(value)
     save_modified_reads(combined_reads, OUTPUT_BAM_PATH, OUTPUT_BARCODES_PATH, experiment_bams_selected[0])
     return
+
+def modify_cb_tags_with_doublets(sampled_reads, modify_with, doublet_ratio_per_10_000_cells):
+    doublet_ratio = doublet_ratio_per_10_000_cells
+    number_of_cb_tags = len(sampled_reads.items())
+    number_of_doublets_required = number_of_cb_tags * doublet_ratio
+    doublet_cell_indices = []
+    for i in range(number_of_doublets_required):
+        doublet_cell_indices.append(random.randint(1, number_of_cb_tags))
+    # Dictionary to store the modified sampled reads with updated CB tags
+    modified_reads = {}
+    doublet_modify_with = "-{}".format(random.randint(1, DONORS))
+    for (index, (cb_tag, reads)) in enumerate(sampled_reads.items()):
+        # check if this should be a doublet 
+        if index in doublet_cell_indices:
+            # Modify the CB tag from ending with "-1" to "-2"
+            if cb_tag.endswith("-1"):
+                new_cb_tag = cb_tag[:-2] + modify_with + doublet_modify_with
+            else:
+                print(f"Warning: CB tag {cb_tag} does not end with '-1'. Skipping.")
+                continue
+            # Update the CB tag in each read
+            modified_reads[new_cb_tag] = []
+            for read in reads:
+                # Create a copy of the read to avoid modifying the original object (if needed)
+                read_copy = read
+                # Update the "CB" tag within the read to match the new CB tag
+                read_copy.set_tag("CB", new_cb_tag, value_type="Z")
+                # Add the modified read to the new CB tag list
+                modified_reads[new_cb_tag].append(read_copy)
+        else:
+            # Modify the CB tag from ending with "-1" to "-2"
+            if cb_tag.endswith("-1"):
+                new_cb_tag = cb_tag[:-2] + modify_with
+            else:
+                print(f"Warning: CB tag {cb_tag} does not end with '-1'. Skipping.")
+                continue
+            # Update the CB tag in each read
+            modified_reads[new_cb_tag] = []
+            for read in reads:
+                # Create a copy of the read to avoid modifying the original object (if needed)
+                read_copy = read
+                # Update the "CB" tag within the read to match the new CB tag
+                read_copy.set_tag("CB", new_cb_tag, value_type="Z")
+                # Add the modified read to the new CB tag list
+                modified_reads[new_cb_tag].append(read_copy)
+    return modified_reads
+
 
 def modify_cb_tags(sampled_reads, modify_with):
     # Dictionary to store the modified sampled reads with updated CB tags
