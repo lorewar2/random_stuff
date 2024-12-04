@@ -5,7 +5,7 @@
 #d {\displaystyle d}, the number of pairs of elements in S {\displaystyle S} that are in different subsets in X {\displaystyle X} and in the same subset in Y {\displaystyle Y}
     
 def main():
-    file_path = 'clusters_tmp.tsv'  # Path to your file
+    file_path = 'random_clusters_tmp.tsv'  # Path to your file
     process_file(file_path)
     return
 
@@ -45,15 +45,24 @@ def get_soupurcell_cluster_and_ground_truth(entry):
 
 # Read entries from a file
 def process_file(file_path):
+    print("Going through lines")
+    index = 0
+    entries = []
     with open(file_path, 'r') as file:
-        # Read all lines from the file
-        entries = [line.strip() for line in file if line.strip()]  # Remove blank lines
-
+        # Read all lines from the f
+        for line in file:
+            entries.append(line.strip())
+            index += 1
+            if index % 100 == 0:
+                print("Current line ", index)        
+    print("Read the file")
     randindex_variables = [0, 0, 0, 0] # abcd
     for i in range(len(entries)):
+        print("processing {} out of {}, current result {}".format(i, len(entries), randindex_variables))
         for j in range(i + 1, len(entries)):  
             received_index = process_pair(entries[i], entries[j])
-            randindex_variables[received_index] += 1 
+            randindex_variables[received_index] += 1
+    print("Final variables ", randindex_variables)
     # print the result
     print((randindex_variables[0] + randindex_variables[1]) / sum(randindex_variables))
 if __name__ == "__main__":
