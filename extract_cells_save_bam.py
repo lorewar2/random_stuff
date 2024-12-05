@@ -34,7 +34,8 @@ def main():
                 combined_reads[key].extend(value)
             else:
                 combined_reads[key].append(value)
-    save_modified_reads(combined_reads, OUTPUT_BAM_PATH, OUTPUT_BARCODES_PATH, experiment_bams_selected[0])
+        save_modified_reads(combined_reads, "{}{}".format(OUTPUT_BAM_PATH, index), "{}{}".format(OUTPUT_BARCODES_PATH, index), experiment_bams_selected[0])
+        combined_reads.clear()
     return
 
 def modify_cb_tags_with_doublets(sampled_reads, modify_with, doublet_ratio_per_10_000_cells):
