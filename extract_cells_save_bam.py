@@ -4,13 +4,13 @@ from collections import defaultdict
 import csv
 import pysam
 
-UNIQUE_CELLS = 10 # number of cells required
-INCLUDE_DOUBLETS = True 
-BAR_CODE_MIN_READ = 10 # Min number of reads corrosponding to cell
+UNIQUE_CELLS = 350 # number of cells required
+INCLUDE_DOUBLETS = False
+BAR_CODE_MIN_READ = 8000 # Min number of reads corrosponding to cell
 DONORS = 20
-GET_FIRST_ONES_FAST = True
-OUTPUT_BAM_PATH = "./test.bam"
-OUTPUT_BARCODES_PATH = "./test.tsv"
+GET_FIRST_ONES_FAST = False
+OUTPUT_BAM_PATH = "./1000_cell.bam"
+OUTPUT_BARCODES_PATH = "./1000_cell.tsv"
 SEED = 10
 
 def main():
