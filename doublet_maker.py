@@ -6,33 +6,58 @@ import pysam
 
 SEED = 10
 INPUT_FILE_PATH = "merged.sorted.bam"
-OUTPUT_PATH = "350_with_doublets.bam"
+OUTPUT_BAM_PATH = "350_with_doublets.bam"
+OUTPUT_BAR_PATH = "350_with_doublets.tsv"
 DOUBLET_PERCENT = 1
 
 def main():
     random.seed(SEED)
-    cb_dict, doublet_dics_by_donor  = read_all_bam_files()
+    all_dics_by_donor, doublet_dics_by_donor  = read_all_bam_files()
     print("doublet", len(doublet_dics_by_donor))
     for index in range(25):
         print(index, len(doublet_dics_by_donor[index]))
-    print("all", len(cb_dict))
+    print("all", len(all_dics_by_donor))
     for index in range(25):
-        print(index, len(cb_dict[index]))
-    
+        print(index, len(all_dics_by_donor[index]))
     doublet_list = make_a_doublet_list(doublet_dics_by_donor)
     print("final doublet list len ", len(doublet_list))
-    print(doublet_list[0])
     # Write to BAM the doublets
+    save_modified_reads(all_dics_by_donor, doublet_list, OUTPUT_BAM_PATH, OUTPUT_BAR_PATH, INPUT_FILE_PATH)
     return
 
+def save_modified_reads(all_list, doublet_list, output_bam_path, output_barcodes_path, template_path):
+    # Get the list of unique CB tags
+    unique_cb_tags = []
+    # Open a new BAM file for writing
+    bamfile = pysam.AlignmentFile(template_path, "rb")
+    with pysam.AlignmentFile(output_bam_path, "wb", template=bamfile) as out_bam:
+        # Write each read to the bam file
+        for donor_index in range(25):
+            unique_cb_tags.extend(list(all_list[donor_index].keys()))
+            # all file
+            for cb_tag, reads in all_list[donor_index].items():
+                for read in reads:
+                    out_bam.write(read)
+        # doublet file
+        for entry in doublet_list:
+            unique_cb_tags.append(entry[1])
+            for read in entry[2]:
+                out_bam.write(read)
+            
+    # Write the unique CB tags to a barcodes.tsv file
+    with open(output_barcodes_path, "w") as barcode_file:
+        for cb_tag in unique_cb_tags:
+            barcode_file.write(f"{cb_tag}\n")
+            
 def make_a_doublet_list(doublet_dics_by_donor):
     # Combine pairs until doubet dict is empty
     doublet_dics_by_donor_empty = False
     list_with_doublets = []
     while doublet_dics_by_donor_empty == False:
         # Select 2 donors and 1 cell from each
+        print("length of donors before processing ", len(doublet_dics_by_donor))
         two_selected_donors = random.sample(range(len(doublet_dics_by_donor)), 2)
-        print(len(doublet_dics_by_donor[two_selected_donors[0]]), len(doublet_dics_by_donor[two_selected_donors[1]]))
+        print("donor 1 ", two_selected_donors[0], len(doublet_dics_by_donor[two_selected_donors[0]]), " donor 2 ", two_selected_donors[1], len(doublet_dics_by_donor[two_selected_donors[1]]))
         cell_to_remove_1 = random.sample(list(doublet_dics_by_donor[two_selected_donors[0]].keys()), 1)[0]
         cell_to_remove_2 = random.sample(list(doublet_dics_by_donor[two_selected_donors[1]].keys()), 1)[0]
         # Append the reads
@@ -48,13 +73,18 @@ def make_a_doublet_list(doublet_dics_by_donor):
             new_cb_tag = cell_bar_code.split("-")[0] + combined_donors_string
             read_copy.set_tag("CB", new_cb_tag, value_type="Z")
             modified_reads.append(read_copy)
-        list_with_doublets.append((combined_donors_string, cell_bar_code, modified_reads))
+        list_with_doublets.append((combined_donors_string, new_cb_tag, modified_reads))
         # Remove the cells from doublet_dics_by_donor
         del doublet_dics_by_donor[two_selected_donors[0]][cell_to_remove_1]
         del doublet_dics_by_donor[two_selected_donors[1]][cell_to_remove_2] 
-        if len(doublet_dics_by_donor[two_selected_donors[0]]) < 2:
+        print("check len for delete ", len(doublet_dics_by_donor[two_selected_donors[0]]))
+        print("check len for delete ", len(doublet_dics_by_donor[two_selected_donors[1]]))
+        if len(doublet_dics_by_donor[two_selected_donors[0]]) == 0:
             del doublet_dics_by_donor[two_selected_donors[0]]
-        if len(doublet_dics_by_donor[two_selected_donors[1]]) < 2:
+            # deleted entry rearrange
+            if two_selected_donors[0] < two_selected_donors[1]:
+                two_selected_donors[1] -= 1
+        if len(doublet_dics_by_donor[two_selected_donors[1]]) == 0:
             del doublet_dics_by_donor[two_selected_donors[1]]
         # Update doublet_dics_by_donor_empty
         current_number_of_cells = sum([len(dics) for dics in doublet_dics_by_donor])
