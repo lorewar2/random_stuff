@@ -108,8 +108,6 @@ def read_all_bam_files():
                     index += 1
             if index % 1000 == 0:
                 print(index)
-            if index > 10_000_000:
-                break
     print("retrieved all reads")
     print("Pre removeal")
     for index in range(23):
