@@ -5,14 +5,17 @@ import csv
 import pysam
 
 SEED = 10
-INPUT_FILE_PATH = "1000_cell.bam"
+INPUT_FILE_PATH = "merged.sorted.bam"
 OUTPUT_PATH = "1000_with_doublets.bam"
 DOUBLET_PERCENT = 1
 
 def main():
     random.seed(SEED)
     cb_dict, doublet_dics_by_donor  = read_all_bam_files()
-    doublet_list = make_a_doublet_list(doublet_dics_by_donor)
+    print("doublet", len(doublet_dics_by_donor))
+    print("all", len(cb_dict))
+    
+    #doublet_list = make_a_doublet_list(doublet_dics_by_donor)
     # Write to BAM the doublets
     return
 
@@ -52,41 +55,36 @@ def make_a_doublet_list(doublet_dics_by_donor):
 
 def read_all_bam_files():
     combined_reads = defaultdict(list)
-    doublet_by_donor = []
-    for index in range(27):
-        donor_doublets = defaultdict(list)
-        bam_file_path = "{}{}".format(INPUT_FILE_PATH, index)
-        cb_dict = defaultdict(list)
-        with pysam.AlignmentFile(bam_file_path, "rb") as bam_file:
-            # Iterate through all reads in the BAM file
-            for read in bam_file.fetch():
-                if read.has_tag("CB"):  # Check if read has "CB" tag
-                    cb_tag = read.get_tag("CB")
-                    cb_dict[cb_tag].append(read)
+    doublet_by_donor = [defaultdict(list)] * 27
+    all_by_donor = [defaultdict(list)] * 27
+    bam_file_path = "{}".format(INPUT_FILE_PATH)
+    with pysam.AlignmentFile(bam_file_path, "rb") as bam_file:
+        # Iterate through all reads in the BAM file
+        for read in bam_file.fetch():
+            if read.has_tag("CB"):  # Check if read has "CB" tag
+                cb_tag = read.get_tag("CB")
+                donor_index = cb_tag.split("-")[1]
+                all_by_donor[donor_index][cb_tag].append(read)
+    # Go through each donor and select 1 percent from each
+    for donor_index in range(27):
         # Select 1% of the barcodes for doublets
-        percent_1_size = len(cb_dict) / 100
+        percent_1_size = len(all_by_donor[donor_index]) / 100
         # Randomly select cells to remove
-        cells_to_remove = random.sample(list(cb_dict.keys()), percent_1_size)
+        cells_to_remove = random.sample(list(all_by_donor[donor_index].keys()), percent_1_size)
         # Save the removed key-value pairs
-        temp_doublets = {cell: cb_dict[cell] for cell in cells_to_remove}
+        temp_doublets = {cell: all_by_donor[donor_index][cell] for cell in cells_to_remove}
         # Delete the entries from the original dictionary
         for cell in cells_to_remove:
-            del cb_dict[cell]
-        # Create a dictionary for the sampled reads by CB tag
-        for key, value in cb_dict.items():
-            # Append the value(s) for each key in the combined dictionary
-            # If the value is a list (e.g., reads associated with a CB tag), extend it
-            if isinstance(value, list):
-                combined_reads[key].extend(value)
-            else:
-                combined_reads[key].append(value)
+            del all_by_donor[donor_index][cell]
         # Create a dictionary for the sampled reads by CB tag
         for key, value in temp_doublets.items():
             # Append the value(s) for each key in the combined dictionary
             # If the value is a list (e.g., reads associated with a CB tag), extend it
             if isinstance(value, list):
-                donor_doublets[key].extend(value)
+                doublet_by_donor[donor_index][key].extend(value)
             else:
-                donor_doublets[key].append(value)
-        doublet_by_donor.append(donor_doublets)
+                doublet_by_donor[donor_index][key].append(value)
     return (combined_reads, doublet_by_donor)
+
+if __name__ == "__main__":
+    main()
