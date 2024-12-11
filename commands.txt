@@ -18,6 +18,9 @@ cellranger count --id=${sample} \
 --localmem=64
 done
 
+for sample in 1000_cell.tsv{0..24}; do
+cat ${sample} >> barcode.tsv
+done
 BASH
 
 for ((i=0; i<20; i++)); do
