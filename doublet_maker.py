@@ -11,14 +11,11 @@ OUTPUT_BAR_PATH = "350_with_doublets.tsv"
 DOUBLET_PERCENT = 1
 
 def main():
+    # Random initialize with seed
     random.seed(SEED)
+    # Get all the reads by donor and doublets by donor
     all_dics_by_donor, doublet_dics_by_donor  = read_all_bam_files()
     print("doublet", len(doublet_dics_by_donor))
-    for index in range(23):
-        print(index, len(doublet_dics_by_donor[index]))
-    print("all", len(all_dics_by_donor))
-    for index in range(23):
-        print(index, len(all_dics_by_donor[index]))
     doublet_list = make_a_doublet_list(doublet_dics_by_donor)
     print("final doublet list len ", len(doublet_list))
     # Write to BAM the doublets
