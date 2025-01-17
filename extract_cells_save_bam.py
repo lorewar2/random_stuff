@@ -4,18 +4,18 @@ from collections import defaultdict
 import csv
 import pysam
 
-UNIQUE_CELLS = 350 # number of cells required
+UNIQUE_CELLS = 400 # number of cells required
 INCLUDE_DOUBLETS = False
-BAR_CODE_MIN_READ = 8000 # Min number of reads corrosponding to cell
-DONORS = 20
+BAR_CODE_MIN_READ = 5000 # Min number of reads corrosponding to cell
+DONORS = 51
 GET_FIRST_ONES_FAST = False
-OUTPUT_BAM_PATH = "./1000_cell.bam"
-OUTPUT_BARCODES_PATH = "./1000_cell.tsv"
+OUTPUT_BAM_PATH = "./all_comb.bam"
+OUTPUT_BARCODES_PATH = "./all_comb.tsv"
 SEED = 10
 
 def main():
     random.seed(SEED)
-    experiment_bams_selected = select_the_bam_and_barcodes_to_process()
+    experiment_bams_selected = new_selection()
     combined_reads = defaultdict(list)
     # go through the bams and process them and what not
     for index, experiment_bam_path in enumerate(experiment_bams_selected):
@@ -105,6 +105,15 @@ def modify_cb_tags(sampled_reads, modify_with):
             # Add the modified read to the new CB tag list
             modified_reads[new_cb_tag].append(read_copy)
     return modified_reads
+
+def new_selection():
+    directories = [d for d in os.listdir("./") if os.path.isdir(os.path.join("./", d))]
+    experiments_selected = []
+    for dir in directories:
+        temp_string = "./{}/possorted_genome_bam.bam".format(dir)
+        experiments_selected.append(temp_string)
+    print(experiments_selected)
+    return experiments_selected
 
 def select_the_bam_and_barcodes_to_process():
     experiments_selected = []
