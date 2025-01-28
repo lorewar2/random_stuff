@@ -25,7 +25,9 @@ def click_positions(positions, repeat_count, delay=0.5):
     for _ in range(repeat_count):
         for pos in positions:
             pyautogui.moveTo(pos[0], pos[1], duration=0.1)  # Move the mouse
-            pyautogui.click()  # Perform the click
+            pyautogui.click(duration=0.1, clicks=2)  # Perform the click
+            time.sleep(0.1)
+            pyautogui.click(duration=0.1, clicks=2)  # Perform the click
             time.sleep(delay)
 
 if __name__ == "__main__":

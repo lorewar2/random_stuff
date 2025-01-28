@@ -29,7 +29,7 @@ def save_modified_reads(all_list, doublet_list, output_bam_path, output_barcodes
     bamfile = pysam.AlignmentFile(template_path, "rb")
     with pysam.AlignmentFile(output_bam_path, "wb", template=bamfile) as out_bam:
         # Write each read to the bam file
-        for donor_index in range(23):
+        for donor_index in range(51):
             unique_cb_tags.extend(list(all_list[donor_index].keys()))
             # all file
             for cb_tag, reads in all_list[donor_index].items():
@@ -90,8 +90,8 @@ def make_a_doublet_list(doublet_dics_by_donor):
     return list_with_doublets
 
 def read_all_bam_files():
-    doublet_by_donor = [defaultdict(list) for _ in range(23)]
-    all_by_donor = [defaultdict(list) for _ in range(23)]
+    doublet_by_donor = [defaultdict(list) for _ in range(51)]
+    all_by_donor = [defaultdict(list) for _ in range(51)]
     bam_file_path = "{}".format(INPUT_FILE_PATH)
     index = 0
     with pysam.AlignmentFile(bam_file_path, "rb") as bam_file:
@@ -100,19 +100,19 @@ def read_all_bam_files():
             if read.has_tag("CB"):  # Check if read has "CB" tag
                 cb_tag = read.get_tag("CB")
                 donor_index = int(cb_tag.split("-")[1])
-                if donor_index < 23:
+                if donor_index < 51:
                     all_by_donor[donor_index][cb_tag].append(read)
                     index += 1
             if index % 1000 == 0:
                 print(index)
     print("retrieved all reads")
     print("Pre removeal")
-    for index in range(23):
+    for index in range(51):
         print(index, len(all_by_donor[index]))
     # Go through each donor and select 1 percent from each
-    for donor_index in range(23):
-        # Select 1% of the barcodes for doublets
-        percent_1_size = int(len(all_by_donor[donor_index]) / 100)
+    for donor_index in range(51):
+        # Select 10% of the barcodes for doublets
+        percent_1_size = int(len(all_by_donor[donor_index]) / 10)
         print("1 percent doublet size", percent_1_size)
         # Randomly select cells to remove
         cells_to_remove = random.sample(list(all_by_donor[donor_index].keys()), percent_1_size)
