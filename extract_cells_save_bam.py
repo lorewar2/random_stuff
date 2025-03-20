@@ -6,12 +6,12 @@ import pysam
 
 UNIQUE_CELLS = 400 # number of cells required
 INCLUDE_DOUBLETS = False
-BAR_CODE_MIN_READ = 5000 # Min number of reads corrosponding to cell
+BAR_CODE_MIN_READ = 8000 # Min number of reads corrosponding to cell
 DONORS = 51
 GET_FIRST_ONES_FAST = False
 OUTPUT_BAM_PATH = "./all_comb.bam"
 OUTPUT_BARCODES_PATH = "./all_comb.tsv"
-SEED = 10
+SEED = 255
 
 def main():
     random.seed(SEED)
@@ -20,6 +20,8 @@ def main():
     # go through the bams and process them and what not
     for index, experiment_bam_path in enumerate(experiment_bams_selected):
         print("Processing -{} : {}".format(index, experiment_bam_path))
+        if index not in [1,7,21,41]:
+            continue
         sampled_reads = sample_bam_by_cb_tag(experiment_bam_path, UNIQUE_CELLS)
         if INCLUDE_DOUBLETS:
             modified_reads = modify_cb_tags_with_doublets(sampled_reads, "-{}".format(index), 0.01)
@@ -34,7 +36,7 @@ def main():
                 combined_reads[key].extend(value)
             else:
                 combined_reads[key].append(value)
-        save_modified_reads(combined_reads, "{}{}".format(OUTPUT_BAM_PATH, index), "{}{}".format(OUTPUT_BARCODES_PATH, index), experiment_bams_selected[0])
+        save_modified_reads(combined_reads, "{}{}".format(OUTPUT_BAM_PATH, index), "{}{}".format(OUTPUT_BARCODES_PATH, index), experiment_bams_selected[1])
         combined_reads.clear()
     return
 
@@ -49,7 +51,7 @@ def modify_cb_tags_with_doublets(sampled_reads, modify_with, doublet_ratio_per_1
     modified_reads = {}
     doublet_modify_with = "-{}".format(random.randint(1, DONORS))
     for (index, (cb_tag, reads)) in enumerate(sampled_reads.items()):
-        # check if this should be a doublet 
+        # check if this should be a doublet
         if index in doublet_cell_indices:
             # Modify the CB tag from ending with "-1" to "-2"
             if cb_tag.endswith("-1"):
@@ -83,7 +85,6 @@ def modify_cb_tags_with_doublets(sampled_reads, modify_with, doublet_ratio_per_1
                 # Add the modified read to the new CB tag list
                 modified_reads[new_cb_tag].append(read_copy)
     return modified_reads
-
 
 def modify_cb_tags(sampled_reads, modify_with):
     # Dictionary to store the modified sampled reads with updated CB tags
@@ -197,6 +198,10 @@ def sample_bam_by_cb_tag(bam_file_path, num_unique_cbs):
         for key in cb_dict.keys():
             if len(cb_dict[key]) > BAR_CODE_MIN_READ:
                 unique_cbs.append(key)
+            total_length = 0
+            for read in cb_dict[key]:
+                total_length += len(read)
+            print("Total length ", total_length)
         # Get the first num_unique_cbs which are greater than BAR_CODE_MIN_READ
         # Totally random
         if len(unique_cbs) < num_unique_cbs:
