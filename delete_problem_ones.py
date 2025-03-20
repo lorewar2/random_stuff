@@ -11,7 +11,10 @@ def main():
 # remove problem cells
 def sample_bam(bam_file_path):
     # Dictionary to store reads grouped by unique CB tags
+    start_index = 0
+    end_index = 1_000_000_000
     reads = []
+    index = 0
     with pysam.AlignmentFile(bam_file_path, "rb") as bam_file:
         # Iterate through all reads in the BAM file
         for read in bam_file.fetch():
@@ -19,7 +22,13 @@ def sample_bam(bam_file_path):
                 cb_tag = read.get_tag("CB")
                 donor_index = int(cb_tag.split("-")[1])
                 if donor_index not in [1, 7, 21, 41]:
-                    reads.append(read)
+                    if index > start_index:
+                        reads.append(read)
+                    index += 1
+            if index % 10_000 == 0:
+                print(index)
+            if index > end_index:
+                break
     return reads
 
 def write_the_reads(bam_write_path, template_path, reads):
