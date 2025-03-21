@@ -211,3 +211,28 @@ g++ -O3 main.cpp bin/libkmc_core.a -o kmc_runner -lbz2 -lz -lpthread
 # view summary
 ~/kmc/bin/kmc_tools transform 156_hera dump 156_hera.txt
 ~/kmc/bin/kmc_tools transform 156_stieg dump 156_stieg.txt
+
+# BASH COMMANDS
+
+for dir in */; do
+    if [ -d "$dir" ]; then
+        files=("$dir"*)  # List files inside the directory
+        if [ ${#files[@]} -gt 0 ]; then
+            # Keep only one file, delete the rest
+            for ((i=1; i<${#files[@]}; i++)); do
+                rm -f "${files[$i]}"
+            done
+            # Rename the remaining file to temp.bam
+            mv "${files[0]}" "$dir/possorted_genome_bam.bam"
+        fi
+    fi
+done
+
+
+for dir in H*/; do
+    if [ -d "$dir" ]; then
+        (cd "$dir" && samtools index possorted_genome_bam.bam) &
+    fi
+done
+
+wait  # Wait for all background processes to finish
