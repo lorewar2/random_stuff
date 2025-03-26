@@ -5,7 +5,6 @@ import csv
 import pysam
 
 UNIQUE_CELLS = 400 # number of cells required
-INCLUDE_DOUBLETS = False
 BAR_CODE_MIN_READ = 8000 # Min number of reads corrosponding to cell
 DONORS = 51
 GET_FIRST_ONES_FAST = False
@@ -20,13 +19,10 @@ def main():
     # go through the bams and process them and what not
     for index, experiment_bam_path in enumerate(experiment_bams_selected):
         print("Processing -{} : {}".format(index, experiment_bam_path))
-        if index not in [1,7,21,41]:
-            continue
+        #if index not in [1,7,21,41]:
+        #continue
         sampled_reads = sample_bam_by_cb_tag(experiment_bam_path, UNIQUE_CELLS)
-        if INCLUDE_DOUBLETS:
-            modified_reads = modify_cb_tags_with_doublets(sampled_reads, "-{}".format(index), 0.01)
-        else:
-            modified_reads = modify_cb_tags(sampled_reads, "-{}".format(index))
+        modified_reads = modify_cb_tags(sampled_reads, "-{}".format(index))
         # put in combined reads
         # Iterate over each dictionary provided as input
         for key, value in modified_reads.items():
@@ -40,52 +36,6 @@ def main():
         combined_reads.clear()
     return
 
-def modify_cb_tags_with_doublets(sampled_reads, modify_with, doublet_ratio_per_10_000_cells):
-    doublet_ratio = doublet_ratio_per_10_000_cells
-    number_of_cb_tags = len(sampled_reads.items())
-    number_of_doublets_required = number_of_cb_tags * doublet_ratio
-    doublet_cell_indices = []
-    for i in range(number_of_doublets_required):
-        doublet_cell_indices.append(random.randint(1, number_of_cb_tags))
-    # Dictionary to store the modified sampled reads with updated CB tags
-    modified_reads = {}
-    doublet_modify_with = "-{}".format(random.randint(1, DONORS))
-    for (index, (cb_tag, reads)) in enumerate(sampled_reads.items()):
-        # check if this should be a doublet
-        if index in doublet_cell_indices:
-            # Modify the CB tag from ending with "-1" to "-2"
-            if cb_tag.endswith("-1"):
-                new_cb_tag = cb_tag[:-2] + modify_with + doublet_modify_with
-            else:
-                print(f"Warning: CB tag {cb_tag} does not end with '-1'. Skipping.")
-                continue
-            # Update the CB tag in each read
-            modified_reads[new_cb_tag] = []
-            for read in reads:
-                # Create a copy of the read to avoid modifying the original object (if needed)
-                read_copy = read
-                # Update the "CB" tag within the read to match the new CB tag
-                read_copy.set_tag("CB", new_cb_tag, value_type="Z")
-                # Add the modified read to the new CB tag list
-                modified_reads[new_cb_tag].append(read_copy)
-        else:
-            # Modify the CB tag from ending with "-1" to "-2"
-            if cb_tag.endswith("-1"):
-                new_cb_tag = cb_tag[:-2] + modify_with
-            else:
-                print(f"Warning: CB tag {cb_tag} does not end with '-1'. Skipping.")
-                continue
-            # Update the CB tag in each read
-            modified_reads[new_cb_tag] = []
-            for read in reads:
-                # Create a copy of the read to avoid modifying the original object (if needed)
-                read_copy = read
-                # Update the "CB" tag within the read to match the new CB tag
-                read_copy.set_tag("CB", new_cb_tag, value_type="Z")
-                # Add the modified read to the new CB tag list
-                modified_reads[new_cb_tag].append(read_copy)
-    return modified_reads
-
 def modify_cb_tags(sampled_reads, modify_with):
     # Dictionary to store the modified sampled reads with updated CB tags
     modified_reads = {}
@@ -95,7 +45,7 @@ def modify_cb_tags(sampled_reads, modify_with):
             new_cb_tag = cb_tag[:-2] + modify_with
         else:
             print(f"Warning: CB tag {cb_tag} does not end with '-1'. Skipping.")
-            continue
+            new_cb_tag = cb_tag + modify_with
         # Update the CB tag in each read
         modified_reads[new_cb_tag] = []
         for read in reads:
@@ -113,48 +63,6 @@ def new_selection():
     for dir in directories:
         temp_string = "./{}/possorted_genome_bam.bam".format(dir)
         experiments_selected.append(temp_string)
-    print(experiments_selected)
-    return experiments_selected
-
-def select_the_bam_and_barcodes_to_process():
-    experiments_selected = []
-    # Get  a list of doners (manual cause there are other folders :C)
-    donor_BL = ["BL{}".format(d) for d in range(1, 8)]
-    donor_CB = ["CB{}".format(d) for d in range(1, 12)]
-    donor_BM = ["BM{}".format(d) for d in range(1, 8)]
-    donors = [entry for entry in (donor_BL + donor_CB + donor_BM)]
-
-    # loop through the list and choose the one with highest umi/cell count
-    for donor_index, donor in enumerate(donors):
-        print("processing donor {} - {}".format(donor_index, donor))
-        # get the subdirectories
-        donor_experiments = list_subdirectories(donor)
-        umi_to_cell = [0] * len(donor_experiments)
-        # go through the experments and update umi list and select max
-        for experiment_index, experiment in enumerate(donor_experiments):
-            # get the umi to cell for this experiment
-            experiment_metric_csv_path = "./{}/{}/outs/metrics_summary.csv".format(donor, experiment)
-            try:
-                # Open the CSV file
-                #print(experiment_metric_csv_path)
-                with open(experiment_metric_csv_path, mode='r', newline='') as csvfile:
-                    # Read the CSV file
-                    reader = csv.reader(csvfile)
-                    # Skip the header row
-                    _ = next(reader)
-                    # Read the next row, which contains the values
-                    values = next(reader)
-                    # Get the last value in the row
-                    print(int(values[-1].replace(',','')))
-                    umi_to_cell[experiment_index] = int(values[-1].replace(',',''))
-            except:
-                print("0")
-        print(umi_to_cell)
-        max_index = umi_to_cell.index(max(umi_to_cell))
-        selected_experiment = donor_experiments[max_index]
-        print(max_index, selected_experiment)
-        experiments_selected.append("./{}/{}/outs/possorted_genome_bam.bam".format(donor, selected_experiment))
-    experiments_selected.sort()
     print(experiments_selected)
     return experiments_selected
 
@@ -189,19 +97,26 @@ def sample_bam_by_cb_tag(bam_file_path, num_unique_cbs):
     else:   # go through all save them and get some random
         with pysam.AlignmentFile(bam_file_path, "rb") as bam_file:
             # Iterate through all reads in the BAM file
+            break_index = 0
             for read in bam_file.fetch():
                 if read.has_tag("CB"):  # Check if read has "CB" tag
                     cb_tag = read.get_tag("CB")
                     cb_dict[cb_tag].append(read)
+                if break_index > 160_000_000:
+                    break
+                break_index += 1
+                if break_index % 1_000_000 == 0:
+                    print(break_index)
         # Populate unique cbs with cbs which have more than BAR_CODE_MIN_READ reads
         unique_cbs = []
         for key in cb_dict.keys():
             if len(cb_dict[key]) > BAR_CODE_MIN_READ:
-                unique_cbs.append(key)
-            total_length = 0
-            for read in cb_dict[key]:
-                total_length += len(read)
-            print("Total length ", total_length)
+                total_length = 0
+                for read in cb_dict[key]:
+                    total_length += read.query_length
+                if total_length > 100_000:
+                    unique_cbs.append(key)
+                    #print(total_length)
         # Get the first num_unique_cbs which are greater than BAR_CODE_MIN_READ
         # Totally random
         if len(unique_cbs) < num_unique_cbs:
