@@ -4,7 +4,7 @@ from collections import defaultdict
 import csv
 import pysam
 
-UNIQUE_CELLS = 400 # number of cells required
+UNIQUE_CELLS = 2500 # number of cells required
 BAR_CODE_MIN_READ = 8000 # Min number of reads corrosponding to cell
 DONORS = 51
 GET_FIRST_ONES_FAST = False
@@ -19,8 +19,8 @@ def main():
     # go through the bams and process them and what not
     for index, experiment_bam_path in enumerate(experiment_bams_selected):
         print("Processing -{} : {}".format(index, experiment_bam_path))
-        #if index not in [1,7,21,41]:
-        #continue
+        if index > 3:
+            continue
         sampled_reads = sample_bam_by_cb_tag(experiment_bam_path, UNIQUE_CELLS)
         modified_reads = modify_cb_tags(sampled_reads, "-{}".format(index))
         # put in combined reads
