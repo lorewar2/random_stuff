@@ -3,11 +3,17 @@
 #b {\displaystyle b}, the number of pairs of elements in S {\displaystyle S} that are in different subsets in X {\displaystyle X} and in different subsets in Y {\displaystyle Y}
 #c {\displaystyle c}, the number of pairs of elements in S {\displaystyle S} that are in the same subset in X {\displaystyle X} and in different subsets in Y {\displaystyle Y}
 #d {\displaystyle d}, the number of pairs of elements in S {\displaystyle S} that are in different subsets in X {\displaystyle X} and in the same subset in Y {\displaystyle Y}
-    
+
+import sys
+import os
+
 def main():
-    file_path = 'random_clusters_tmp.tsv'  # Path to your file
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <file_path>")
+        sys.exit(1)
+
+    file_path = sys.argv[1]  # Get file path from command-line argument
     process_file(file_path)
-    return
 
 # Function to process a pair of entries
 def process_pair(entry1, entry2):
@@ -54,12 +60,14 @@ def process_file(file_path):
             entries.append(line.strip())
             index += 1
             if index % 100 == 0:
-                print("Current line ", index)        
+                print("Current line ", index)
+            if index > 17550:
+                break
     print("Read the file")
     randindex_variables = [0, 0, 0, 0] # abcd
     for i in range(len(entries)):
         print("processing {} out of {}, current result {}".format(i, len(entries), randindex_variables))
-        for j in range(i + 1, len(entries)):  
+        for j in range(i + 1, len(entries)):
             received_index = process_pair(entries[i], entries[j])
             randindex_variables[received_index] += 1
     print("Final variables ", randindex_variables)
