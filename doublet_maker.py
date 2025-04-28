@@ -3,24 +3,44 @@ import os
 from collections import defaultdict
 import csv
 import pysam
+import threading
 
 SEED = 10
 INPUT_FILE_PATH = "data.bam"
 INPUT_BAR_PATH = "data.tsv"
-OUTPUT_BAM_PATH = "test.bam"
-OUTPUT_BAR_PATH = "test.tsv"
 REQUIRED_CELL_COUNT = 330
 REQUIRED_DONORS = 64
+START_INDEX = 0
+END_INDEX = 10_000_000
 
 def main():
     # Random initialize with seed
     random.seed(SEED)
+    # Main thread runs these
     normal_list, doublet_list = open_bar_code_file_get_doublet_cells(INPUT_BAR_PATH)
     paired_doublet_list = generate_doublet_list(doublet_list)
-    normal_by_donor, doublet_by_donor = read_all_bam_files(doublet_list, normal_list)
-    doublet_list = attach_reads_using_doublet_list(paired_doublet_list, doublet_by_donor)
-    save_modified_reads(normal_by_donor, doublet_list, OUTPUT_BAM_PATH, OUTPUT_BAR_PATH, INPUT_FILE_PATH)
+    # Threading
+    thread_array = []
+    num_threads = 64
+    for i in range(num_threads):
+        thread_allocation = int((END_INDEX - START_INDEX) / num_threads)
+        start_index = START_INDEX + (thread_allocation * i)
+        end_index = start_index + thread_allocation
+        thread_array.append(threading.Thread(target = run_threaded, args=(normal_list, doublet_list, paired_doublet_list, start_index, end_index)))
+
+    for thread in thread_array:
+        thread.start()
+
+    for thread in thread_array:
+        thread.join()
     return
+
+def run_threaded(normal_list, doublet_list, paired_doublet_list, start_index, end_index):
+    output_bam_path = "./output/s{}e{}.bam".format(start_index, end_index)
+    output_tsv_path = "./output/s{}e{}.tsv".format(start_index, end_index)
+    normal_by_donor, doublet_by_donor = read_all_bam_files(doublet_list, normal_list, start_index, end_index)
+    doublet_list = attach_reads_using_doublet_list(paired_doublet_list, doublet_by_donor)
+    save_modified_reads(normal_by_donor, doublet_list, output_bam_path, output_tsv_path, INPUT_FILE_PATH)
 
 def generate_doublet_list(doublet_list):
     paired_doublet_list = []
@@ -113,13 +133,11 @@ def open_bar_code_file_get_doublet_cells(barcode_file):
     #print(final_list_of_cells)
     return final_list_of_cells, final_list_of_doublets
 
-def read_all_bam_files(doublet_list, normal_list):
+def read_all_bam_files(doublet_list, normal_list, start_index, end_index):
     doublet_by_donor = [defaultdict(list) for _ in range(71)]
     normal_by_donor = [defaultdict(list) for _ in range(71)]
     bam_file_path = "{}".format(INPUT_FILE_PATH)
     index = 0
-    start_index = 0
-    end_index = 100_000
     with pysam.AlignmentFile(bam_file_path, "rb") as bam_file:
         # Iterate through all reads in the BAM file
         for read in bam_file.fetch():
