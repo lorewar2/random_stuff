@@ -31,9 +31,21 @@ def process_file(file_path):
             clus_info[assigned_clus][2] += assigned_prob
             clus_info[assigned_clus][3] += assigned_prob / mean
     print("divided by cell count")
+    clus_info.sort(key=lambda x: x[3])
     for index, entry in enumerate(clus_info):
         print(index, entry)
-    clus_info.sort(key=lambda x: x[1])
+    q1_index = int(len(clus_info) * 1 / 4)
+    q3_index = int(len(clus_info) * 3 / 4)
+    iqr = (clus_info[q3_index][3] - clus_info[q1_index][3]) * 1.5
+    print(clus_info[q1_index][3] - iqr)
+    print(clus_info[q3_index][3] + iqr)
+    print(iqr)
+    for index, entry in enumerate(clus_info):
+        print(index, entry)
+        if entry[3] < clus_info[q1_index][3] - iqr:
+            print("below")
+        if entry[3] > clus_info[q3_index][3] + iqr:
+            print("above")
     return
 
 if __name__ == "__main__":
