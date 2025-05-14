@@ -57,12 +57,13 @@ def process_file(file_path):
     with open(file_path, 'r') as file:
         # Read all lines from the f
         for line in file:
-            entries.append(line.strip())
+            temp = line.strip().split("\t")[0].split("-")
+            if len(temp) == 2:
+                entries.append(line.strip())
+                print(temp, len(temp))
             index += 1
             if index % 100 == 0:
                 print("Current line ", index)
-            if index > 17550:
-                break
     print("Read the file")
     randindex_variables = [0, 0, 0, 0] # abcd
     for i in range(len(entries)):
@@ -70,6 +71,7 @@ def process_file(file_path):
         for j in range(i + 1, len(entries)):
             received_index = process_pair(entries[i], entries[j])
             randindex_variables[received_index] += 1
+    print(file_path)
     print("Final variables ", randindex_variables)
     # print the result
     print((randindex_variables[0] + randindex_variables[1]) / sum(randindex_variables))
