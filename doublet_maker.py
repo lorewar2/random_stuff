@@ -3,44 +3,26 @@ import os
 from collections import defaultdict
 import csv
 import pysam
-import threading
 
 SEED = 10
 INPUT_FILE_PATH = "data.bam"
 INPUT_BAR_PATH = "data.tsv"
-REQUIRED_CELL_COUNT = 330
-REQUIRED_DONORS = 64
+OUTPUT_BAM_PATH = "with_doubs.bam"
+OUTPUT_BAR_PATH = "with_doubs.tsv"
+REQUIRED_CELL_COUNT = 2500
 START_INDEX = 0
-END_INDEX = 10_000_000
+END_INDEX = 1_000_000_000
+DOUBLET_VALUE = 10 # for 5% percent == 10 # for 10% percent == 5
 
 def main():
     # Random initialize with seed
     random.seed(SEED)
-    # Main thread runs these
     normal_list, doublet_list = open_bar_code_file_get_doublet_cells(INPUT_BAR_PATH)
     paired_doublet_list = generate_doublet_list(doublet_list)
-    # Threading
-    thread_array = []
-    num_threads = 64
-    for i in range(num_threads):
-        thread_allocation = int((END_INDEX - START_INDEX) / num_threads)
-        start_index = START_INDEX + (thread_allocation * i)
-        end_index = start_index + thread_allocation
-        thread_array.append(threading.Thread(target = run_threaded, args=(normal_list, doublet_list, paired_doublet_list, start_index, end_index)))
-
-    for thread in thread_array:
-        thread.start()
-
-    for thread in thread_array:
-        thread.join()
-    return
-
-def run_threaded(normal_list, doublet_list, paired_doublet_list, start_index, end_index):
-    output_bam_path = "./output/s{}e{}.bam".format(start_index, end_index)
-    output_tsv_path = "./output/s{}e{}.tsv".format(start_index, end_index)
-    normal_by_donor, doublet_by_donor = read_all_bam_files(doublet_list, normal_list, start_index, end_index)
+    normal_by_donor, doublet_by_donor = read_all_bam_files(doublet_list, normal_list)
     doublet_list = attach_reads_using_doublet_list(paired_doublet_list, doublet_by_donor)
-    save_modified_reads(normal_by_donor, doublet_list, output_bam_path, output_tsv_path, INPUT_FILE_PATH)
+    save_modified_reads(normal_by_donor, doublet_list, OUTPUT_BAM_PATH, OUTPUT_BAR_PATH, INPUT_FILE_PATH)
+    return
 
 def generate_doublet_list(doublet_list):
     paired_doublet_list = []
@@ -106,14 +88,12 @@ def open_bar_code_file_get_doublet_cells(barcode_file):
             split_line = line.split("\t")
             cell_id = split_line[0].split("-")[0]
             curr_donor = int(split_line[0].split("-")[1])
-            if donor_index >= REQUIRED_DONORS:
-                break
             if curr_donor == prev_donor:
                 if cell_index < REQUIRED_CELL_COUNT:
                     temp_list.append(cell_id.strip())
             else:
                 # process stuff, get 10 percent of cells and save it in final_list of doublets
-                percent_10_size = int(len(temp_list) / 10)
+                percent_10_size = int(len(temp_list) / DOUBLET_VALUE)
                 doublet_selected = random.sample(temp_list, percent_10_size)
                 for value in temp_list:
                     if value in doublet_selected:
@@ -127,13 +107,16 @@ def open_bar_code_file_get_doublet_cells(barcode_file):
                 donor_index += 1
                 cell_index = 0
             cell_index += 1
-    #print("Selected as doublet cells")
-    #print(final_list_of_doublets)
-    #print("Selected as normal cells")
-    #print(final_list_of_cells)
+        percent_10_size = int(len(temp_list) / DOUBLET_VALUE)
+        doublet_selected = random.sample(temp_list, percent_10_size)
+        for value in temp_list:
+            if value in doublet_selected:
+                final_list_of_doublets.append("{}-{}".format(value, prev_donor))
+            else:
+                final_list_of_cells.append("{}-{}".format(value, prev_donor))
     return final_list_of_cells, final_list_of_doublets
 
-def read_all_bam_files(doublet_list, normal_list, start_index, end_index):
+def read_all_bam_files(doublet_list, normal_list):
     doublet_by_donor = [defaultdict(list) for _ in range(71)]
     normal_by_donor = [defaultdict(list) for _ in range(71)]
     bam_file_path = "{}".format(INPUT_FILE_PATH)
@@ -144,9 +127,9 @@ def read_all_bam_files(doublet_list, normal_list, start_index, end_index):
             index += 1
             if index % 1_000_000 == 0:
                 print(index)
-            if index < start_index:
+            if index < START_INDEX:
                 continue
-            if index > end_index:
+            if index > END_INDEX:
                 break
             if read.has_tag("CB"):  # Check if read has "CB" tag
                 cb_tag = read.get_tag("CB")
@@ -155,7 +138,7 @@ def read_all_bam_files(doublet_list, normal_list, start_index, end_index):
                     doublet_by_donor[donor_index][cb_tag].append(read)
                 elif cb_tag.strip() in normal_list:
                     normal_by_donor[donor_index][cb_tag].append(read)
-            
+
     return (normal_by_donor, doublet_by_donor)
 
 def save_modified_reads(all_list, doublet_list, output_bam_path, output_barcodes_path, template_path):
