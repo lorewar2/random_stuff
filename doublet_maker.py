@@ -7,12 +7,13 @@ import pysam
 SEED = 10
 INPUT_FILE_PATH = "data.bam"
 INPUT_BAR_PATH = "data.tsv"
-OUTPUT_BAM_PATH = "with_doubs.bam"
-OUTPUT_BAR_PATH = "with_doubs.tsv"
+OUTPUT_BAM_PATH = "with_doubs.bam5"
+OUTPUT_BAR_PATH = "with_doubs.tsv5"
 REQUIRED_CELL_COUNT = 2500
 START_INDEX = 0
 END_INDEX = 1_000_000_000
-DOUBLET_VALUE = 10 # for 5% percent == 10 # for 10% percent == 5
+DOUBLET_VALUE = 5 # for 5% percent == 10 # for 10% percent == 5
+FIRST_CELL_COUNT = 50 # minority cluster cell count (10% of total?)
 
 def main():
     # Random initialize with seed
@@ -83,15 +84,19 @@ def open_bar_code_file_get_doublet_cells(barcode_file):
     temp_list = []
     cell_index = 0
     donor_index = 0
+    first_cell = True
     with open(barcode_file, 'r') as file:
         for line in file:
             split_line = line.split("\t")
             cell_id = split_line[0].split("-")[0]
             curr_donor = int(split_line[0].split("-")[1])
             if curr_donor == prev_donor:
-                if cell_index < REQUIRED_CELL_COUNT:
+                if first_cell and (cell_index < FIRST_CELL_COUNT):
+                    temp_list.append(cell_id.strip())
+                elif not first_cell and (cell_index < REQUIRED_CELL_COUNT):
                     temp_list.append(cell_id.strip())
             else:
+                first_cell = False
                 # process stuff, get 10 percent of cells and save it in final_list of doublets
                 percent_10_size = int(len(temp_list) / DOUBLET_VALUE)
                 doublet_selected = random.sample(temp_list, percent_10_size)
