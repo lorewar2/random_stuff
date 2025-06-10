@@ -1,47 +1,20 @@
 
 ```{r}
 library(ggplot2)
-
-# Load the dataset
-data <- tmp_clusters
-
-set.seed(1)  # For reproducibility
-data <- data[sampled_indices, ]
-
-likelihoods <- data[, 3:ncol(data)]
-likelihoods <- t(apply(likelihoods[,1:ncol(likelihoods)], 1, function(x){(x/mean(x))}))
-# Perform PCA
-pca_result <- prcomp(likelihoods, center = TRUE, scale. = TRUE)
-
-# Create a data frame for plotting
-pca_data <- data.frame(PC1 = pca_result$x[, 1], 
-                        PC2 = pca_result$x[, 2], 
-                        Cluster = as.factor(data[, 2]))  # Convert cluster to factor for coloring
-
-# Plot PCA results
-ggplot(pca_data, aes(x = PC1, y = PC2, color = Cluster)) +
-  geom_point(alpha = 0.7, size = 2) +
-  theme_minimal() +
-  labs(title = "PCA of Cell Clusters", x = "PC1", y = "PC2", color = "Cluster")
-
-```
-
-```{r}
-library(ggplot2)
 library(umap)
 library(RColorBrewer)
 # Load the dataset
-data <- final_clusters_common
-data <- data[data$status != "unassigned", ]
-data <- data[data$status != "doublet", ]
-data <- data[1:(nrow(data) - 1500),]
+data <- two_shot
+#data <- data[data$status != "unassigned", ]
+#data <- data[data$status != "doublet", ]
+data <- data[1:(nrow(data) - 2500),]
 
-set.seed(2)  # For reproducibility
-sampled_indices <- sample(seq_len(nrow(data)), size = floor(nrow(data) * 0.2))
+set.seed(5)  # For reproducibility
+sampled_indices <- sample(seq_len(nrow(data)), size = floor(nrow(data) * 0.10))
 data <- data[sampled_indices, ]
 
 # Extract relevant columns (likelihood values start from the third column)
-likelihoods <- data[, 8:ncol(data)]
+likelihoods <- data[, 3:ncol(data)]
 likelihoods <- t(apply(likelihoods[,1:ncol(likelihoods)], 1, function(x){(x/mean(x))}))
 
 # Perform UMAP
@@ -55,27 +28,54 @@ umap_data <- data.frame(UMAP1 = umap_result$layout[, 1],
 
 ```{r}
 # Generate distinct colors for clusters
-color_palette <- colorRampPalette(brewer.pal(12, "Set3"))(51)
+color_palette <- colorRampPalette(brewer.pal(12, "Set3"))(64)
 print(color_palette)
 # Plot UMAP results
 ggplot(umap_data, aes(x = UMAP1, y = UMAP2, color = Cluster)) +
   geom_point(alpha = 0.7, size = 1.2) +
   scale_color_manual(values = color_palette) +
   theme_minimal() +
-  labs(title = "UMAP of Cell Clusters", x = "UMAP1", y = "UMAP2", color = "Cluster")
+  labs(title = "UMAP of Cell Clusters", x = "UMAP1", y = "UMAP2", color = "Cluster") +
+  xlim(-10, 10) +
+  ylim(-10, 10)
 ```
 
 ```{r}
-data <- final_clusters_common
-data <- data[data$status != "unassigned", ]
-data <- data[data$status != "doublet", ]
+library(dplyr)
+data <- two_shot
+#data <- data[data$status != "unassigned", ]
+#data <- data[data$status != "doublet", ]
+data <- data[1:(nrow(data) - 2500),]
 ground_truth_clusters <- sub(".*-(\\d+)$", "\\1", data[, 1])
-predicted_clusters <- data[, 3]
+predicted_clusters <- data[, 2]
 
+map_clusters <- function(ground_truth, assigned_cluster) {
+  mapping <- tapply(assigned_cluster, ground_truth, function(x) {
+    unique_val <- unique(x)
+    if (length(unique_val) == 1) return(unique_val)
+    return(names(which.max(table(x))))  # Choose the most frequent assigned cluster if multiple
+  })
+  return(mapping)
+}
 
+cluster_mapping <- map_clusters(ground_truth_clusters, predicted_clusters)
 
-custom_y_order <- c("38", "6", "46", "30", "13", "44", "27", "34", "32", "25", "29", "10", "16", "28", "49", "4","48", "18", "7", "21", "43", "17", "50", "12", "2", "24", "23", "15", "33", "26", "39", "20", "41", "31", "36", "45", "40", "0", "37", "47", "42", "35", "3", "14", "5", "19", "22", "9", "11", "8", "1")
+print(cluster_mapping)
+# Convert names to numeric for proper sorting
+sorted_indices <- sort(as.numeric(names(cluster_mapping)))
+
+# Extract values in sorted order as an array
+sorted_values <- unname(cluster_mapping[as.character(sorted_indices)])
+
+# Print the sorted values array
+print(sorted_values)
+
+custom_y_order <- sorted_values
 custom_y_order <- as.numeric(custom_y_order)
+
+print(custom_y_order)
+
+# Given numbers
 # Convert to a data frame
 df <- data.frame(x = as.numeric(ground_truth_clusters), y = as.numeric(predicted_clusters))
 
@@ -92,11 +92,15 @@ full_grid <- expand.grid(x = x_range, y = custom_y_order) %>%
 # Convert y to a factor to enforce order
 full_grid$y <- factor(full_grid$y, levels = custom_y_order)
 
-# Plot heatmap using geom_tile()
+excluded_x_values <- c(5, 9, 13, 24, 40, 65 ,68)
+full_grid <- full_grid[!(full_grid$x %in% excluded_x_values), ]
+
+# Convert x to factor to avoid gaps
+full_grid$x <- factor(full_grid$x, levels = sort(unique(full_grid$x)))
+
 ggplot(full_grid, aes(x = x, y = y, fill = n)) +
-  geom_tile(color = "black") +  # Add black borders to all tiles
+  geom_tile(color = "black") +
   scale_fill_gradient(low = "white", high = "red") +
-  scale_x_continuous(breaks = x_range) +  # Ensure all x-axis ticks are shown
   labs(title = "Heatmap of Ground truth vs. Assignment", 
        x = "Ground truth", 
        y = "Assignment", 
