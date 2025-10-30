@@ -1,10 +1,10 @@
 CELLRANGER
 
-cellranger count --id=CB1 \
+cellranger count --id=pooled18 \
 --create-bam=true \
 --transcriptome=/data1/cellector/kmeans_pp/demuxlet_data/refdata-cellranger-GRCh38-3.0.0 \
---fastqs=/data1/cellector/kmeans_pp/split_by_doner/CB1 \
---sample=MantonCB1_HiSeq_2 \
+--fastqs=/data1/cellector/mw/snpmanifold_data/ERR \
+--sample=pooled18 \
 --localcores=64 \
 --localmem=128
 
