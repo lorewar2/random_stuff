@@ -5,7 +5,7 @@ barcode_df["barcode"] = barcode_df["barcode"].str.split("-", n=1).str[0]
 
 barcode_donor_list = list(zip(barcode_df["barcode"], barcode_df["donor_id"]))
 
-khm_df = pd.read_csv("khm_filtered.tsv", sep="\t", header=None, usecols=[0, 1], names=["barcode", "cluster"])
+khm_df = pd.read_csv("khm_filtered_3.tsv", sep="\t", header=None, usecols=[0, 1], names=["barcode", "cluster"])
 print(khm_df["barcode"])
 khm_df["barcode"] = khm_df["barcode"].str.split("-", n=1).str[0]
 filtered_df = khm_df[khm_df["barcode"].isin(barcode_df["barcode"])]
