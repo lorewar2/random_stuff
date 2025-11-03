@@ -1,10 +1,10 @@
 CELLRANGER
 
-cellranger count --id=pooled18 \
+cellranger count --id=pooled24 \
 --create-bam=true \
 --transcriptome=/data1/cellector/kmeans_pp/demuxlet_data/refdata-cellranger-GRCh38-3.0.0 \
---fastqs=/data1/cellector/mw/snpmanifold_data/ERR \
---sample=pooled18 \
+--fastqs=/data1/cellector/mw/real_data/pool6_donor24/ERR \
+--sample=pooled24 \
 --localcores=64 \
 --localmem=128
 
