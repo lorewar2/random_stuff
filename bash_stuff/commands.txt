@@ -1,3 +1,8 @@
+VIREO
+
+vireo --vartrixData=alt_mod.mtx,ref_mod.mtx,data_mod.tsv,common_variants_grch38.vcf.gz -o vireo_out -N 19 -p 64
+vireo --vartrixData=alt_mod.mtx,ref_mod.mtx,data_mod.tsv,common_variants_grch38.vcf.gz -o vireo_out_over2 -N 18 -p 64 --extraDonor=190 --noDoublet
+
 CELLRANGER
 
 cellranger count --id=pooled24 \
